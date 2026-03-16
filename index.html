@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🌸 Два режима: координаты и клики</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #f3e2ed88, #ffdeec88), url('data:image/svg+xml;utf8,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><circle cx="30" cy="30" r="8" fill="%23ffb6d9" opacity="0.3"/><circle cx="10" cy="10" r="5" fill="%23ffe08c" opacity="0.3"/><circle cx="50" cy="50" r="12" fill="%23c0d6ff" opacity="0.2"/></svg>');
+            font-family: 'Nunito', 'Segoe UI', 'Comfortaa', cursive, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .emoji-deco {
+            position: absolute;
+            font-size: 2rem;
+            user-select: none;
+            pointer-events: none;
+            opacity: 0.5;
+            z-index: 2;
+            animation: float 6s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        .emoji1 { top: 5%; left: 3%; animation-delay: 0s; }
+        .emoji2 { top: 15%; right: 4%; animation-delay: 1s; }
+        .emoji3 { bottom: 8%; left: 7%; animation-delay: 2s; }
+        .emoji4 { bottom: 20%; right: 6%; animation-delay: 0.5s; }
+        .emoji5 { top: 40%; left: 2%; animation-delay: 1.7s; }
+        .emoji6 { top: 70%; right: 2%; animation-delay: 0.8s; }
+        .emoji7 { bottom: 5%; right: 15%; animation-delay: 2.3s; }
+        .emoji8 { top: 85%; left: 10%; animation-delay: 1.2s; }
+
+        .worksheet {
+            max-width: 1250px;
+            width: 100%;
+            height: 95vh;
+            max-height: 800px;
+            background: rgba(255, 250, 255, 0.75);
+            backdrop-filter: blur(8px);
+            border-radius: 70px;
+            box-shadow: 0 20px 30px -10px #b37b99, 0 10px 0 #f4b7cc, inset 0 -3px 10px white;
+            padding: 15px 20px;
+            border: 6px solid white;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            position: relative;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
+        .mode-btn {
+            border: none;
+            border-radius: 50px;
+            padding: 10px 25px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: 5px solid white;
+            cursor: pointer;
+            transition: 0.1s;
+            background: #ffd0e5;
+            box-shadow: 0 6px 0 #bc6790;
+            color: #7e3d58;
+            flex: 0 1 auto;
+        }
+
+        .mode-btn.active {
+            background: #fbb0d0;
+            box-shadow: 0 6px 0 #b75b83;
+            transform: translateY(2px);
+        }
+
+        .mode-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #bc6790;
+        }
+
+        .main-area {
+            display: flex;
+            gap: 15px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .grid-section {
+            flex: 2;
+            background: #fcf0f9cc;
+            border-radius: 60px;
+            padding: 15px;
+            border: 5px solid white;
+            box-shadow: 0 8px 0 #c194b2;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            background: #ffffff;
+            border-radius: 40px;
+            border: 4px solid #b4e0ff;
+            box-shadow: 0 6px 0 #7fa3c2, inset 0 0 0 2px #dbf0ff;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 36px;
+            background: white;
+            pointer-events: none; /* холст не перехватывает клики, работаем через контейнер */
+        }
+
+        .canvas-container.clickable {
+            cursor: crosshair;
+        }
+
+        .inputs-section {
+            flex: 1;
+            background: #fef2fbcc;
+            border-radius: 60px;
+            padding: 15px;
+            border: 5px solid white;
+            box-shadow: 0 8px 0 #c194b2;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .point-group {
+            background: #fff6fc;
+            border-radius: 45px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 4px solid #fcc1dd;
+            box-shadow: 0 5px 0 #cd91b5;
+        }
+
+        .group-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #822f54;
+            margin-bottom: 8px;
+            background: #ffeef6;
+            padding: 3px 15px;
+            border-radius: 30px;
+            display: inline-block;
+            border: 3px solid white;
+        }
+
+        .coord-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .coord-label {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #c64f7b;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .coord-format {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            background: #fff0fa;
+            padding: 3px 10px;
+            border-radius: 40px;
+            border: 3px solid white;
+            box-shadow: 0 2px 0 #d89eb9;
+        }
+
+        .coord-input {
+            border: none;
+            background: #fffcf0;
+            border-radius: 25px;
+            padding: 5px 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #602d42;
+            border: 3px solid white;
+            box-shadow: 0 3px 0 #ca96b3;
+            width: 55px;
+            text-align: center;
+        }
+
+        .coord-input:focus {
+            outline: none;
+            background: #ffeef0;
+            box-shadow: 0 4px 0 #b74879;
+        }
+
+        .semicolon {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #c64f7b;
+        }
+
+        .click-mode-area {
+            background: #fff6fc;
+            border-radius: 45px;
+            padding: 20px;
+            border: 4px solid #fcc1dd;
+            box-shadow: 0 5px 0 #cd91b5;
+            text-align: center;
+            font-size: 1.5rem;
+            color: #822f54;
+            margin-bottom: 12px;
+        }
+
+        .target-coord {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #c64f7b;
+            background: #fff0fa;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            border: 4px solid white;
+            margin: 10px 0;
+        }
+
+        .feedback-message {
+            font-size: 1.3rem;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 40px;
+            background: #ffeef6;
+            border: 3px solid white;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 8px;
+            flex-shrink: 0;
+        }
+
+        .check-btn, .reset-btn, .new-point-btn {
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: 5px solid white;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        .check-btn {
+            background: #fbb0d0;
+            box-shadow: 0 6px 0 #b75b83;
+            color: #542839;
+        }
+
+        .reset-btn {
+            background: #fce0b5;
+            box-shadow: 0 6px 0 #c89962;
+            color: #5e3b27;
+        }
+
+        .new-point-btn {
+            background: #c5e0b4;
+            box-shadow: 0 6px 0 #8fa87a;
+            color: #3d5e2b;
+        }
+
+        .check-btn:active, .reset-btn:active, .new-point-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #b75b83;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="emoji-deco emoji1">🦊</div>
+    <div class="emoji-deco emoji2">🐼</div>
+    <div class="emoji-deco emoji3">🍭</div>
+    <div class="emoji-deco emoji4">🌸</div>
+    <div class="emoji-deco emoji5">🧸</div>
+    <div class="emoji-deco emoji6">🐰</div>
+    <div class="emoji-deco emoji7">✨</div>
+    <div class="emoji-deco emoji8">🍰</div>
+
+    <div class="worksheet">
+        <!-- переключатель режимов -->
+        <div class="mode-selector">
+            <button class="mode-btn active" id="modeInputBtn">✏️ ввести координаты</button>
+            <button class="mode-btn" id="modeClickBtn">🎯 найти точку</button>
+        </div>
+
+        <div class="main-area">
+            <!-- левая часть (всегда видна) -->
+            <div class="grid-section">
+                <div class="canvas-container" id="canvasContainer">
+                    <canvas id="coordCanvas" width="700" height="700"></canvas>
+                </div>
+            </div>
+
+            <!-- правая часть: режим ввода координат -->
+            <div class="inputs-section" id="inputModePanel">
+                <div class="point-group">
+                    <div class="group-title">🍓 A, B, C, D</div>
+                    <div class="coord-row"><span class="coord-label">A</span><div class="coord-format"><input class="coord-input" id="Ax" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Ay" placeholder="y"></div></div>
+                    <div class="coord-row"><span class="coord-label">B</span><div class="coord-format"><input class="coord-input" id="Bx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="By" placeholder="y"></div></div>
+                    <div class="coord-row"><span class="coord-label">C</span><div class="coord-format"><input class="coord-input" id="Cx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Cy" placeholder="y"></div></div>
+                    <div class="coord-row"><span class="coord-label">D</span><div class="coord-format"><input class="coord-input" id="Dx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Dy" placeholder="y"></div></div>
+                </div>
+
+                <div class="point-group">
+                    <div class="group-title">🍭 L, M, K</div>
+                    <div class="coord-row"><span class="coord-label">L</span><div class="coord-format"><input class="coord-input" id="Lx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Ly" placeholder="y"></div></div>
+                    <div class="coord-row"><span class="coord-label">M</span><div class="coord-format"><input class="coord-input" id="Mx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="My" placeholder="y"></div></div>
+                    <div class="coord-row"><span class="coord-label">K</span><div class="coord-format"><input class="coord-input" id="Kx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Ky" placeholder="y"></div></div>
+                </div>
+
+                <div class="point-group">
+                    <div class="group-title">🧸 N, F, E</div>
+                    <div class="coord-row"><span class="coord-label">N</span><div class="coord-format"><input class="coord-input" id="Nx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Ny" placeholder="y"></div></div>
+                    <div class="coord-row"><span class="coord-label">F</span><div class="coord-format"><input class="coord-input" id="Fx" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Fy" placeholder="y"></div></div>
+                    <div class="coord-row"><span class="coord-label">E</span><div class="coord-format"><input class="coord-input" id="Ex" placeholder="x"><span class="semicolon">;</span><input class="coord-input" id="Ey" placeholder="y"></div></div>
+                </div>
+
+                <div class="button-group">
+                    <button class="check-btn" id="checkBtn">🔍 проверить</button>
+                    <button class="reset-btn" id="resetBtn">🔄 новые точки</button>
+                </div>
+            </div>
+
+            <!-- правая часть: режим кликов -->
+            <div class="inputs-section hidden" id="clickModePanel">
+                <div class="click-mode-area">
+                    <div>🎯 найди точку</div>
+                    <div class="target-coord" id="targetCoord">(0; 0)</div>
+                    <div class="feedback-message" id="clickFeedback">кликни на плоскость</div>
+                    <button class="new-point-btn" id="newTargetBtn">✨ новая точка</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // звуки
+        let audioCtx = null;
+        function playNote(freq = 440, type = 'sine', duration = 0.1) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.value = 0.1;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        // звуки при кликах
+        document.querySelectorAll('.coord-input').forEach(input => {
+            input.addEventListener('keydown', () => playNote(660, 'sine', 0.06));
+        });
+
+        // canvas
+        const canvas = document.getElementById('coordCanvas');
+        const ctx = canvas.getContext('2d');
+        const size = 700;
+        const center = size / 2;
+        const step = size / 12;
+        const axisColor = '#a0355c';
+
+        // данные
+        let currentPoints = {}; // для режима ввода
+        let targetPoint = { x: 2, y: 3 }; // для режима кликов
+        let hasClicked = false;
+        let lastClickResult = null;
+
+        // генерация случайных целых координат
+        function randomCoord() {
+            return Math.floor(Math.random() * 11) - 5;
+        }
+
+        // генерация набора точек (10 штук)
+        function generatePointsSet() {
+            return {
+                A: [randomCoord(), randomCoord()],
+                B: [randomCoord(), randomCoord()],
+                C: [randomCoord(), randomCoord()],
+                D: [randomCoord(), randomCoord()],
+                L: [randomCoord(), randomCoord()],
+                M: [randomCoord(), randomCoord()],
+                K: [randomCoord(), randomCoord()],
+                N: [randomCoord(), randomCoord()],
+                F: [randomCoord(), randomCoord()],
+                E: [randomCoord(), randomCoord()]
+            };
+        }
+
+        // новая цель для режима кликов
+        function newTarget() {
+            targetPoint = {
+                x: randomCoord(),
+                y: randomCoord()
+            };
+            document.getElementById('targetCoord').textContent = `(${targetPoint.x}; ${targetPoint.y})`;
+            hasClicked = false;
+            lastClickResult = null;
+            document.getElementById('clickFeedback').innerHTML = '👆 кликни на плоскость';
+            drawClickMode();
+            playNote(660, 'sine', 0.1);
+        }
+
+        // отрисовка для режима ввода
+        function drawInputMode() {
+            ctx.clearRect(0, 0, size, size);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+
+            // сетка
+            ctx.strokeStyle = '#f0d8e5';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 12; i++) {
+                const pos = i * step;
+                ctx.beginPath(); ctx.moveTo(pos, 0); ctx.lineTo(pos, size); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, pos); ctx.lineTo(size, pos); ctx.stroke();
+            }
+
+            // оси
+            ctx.strokeStyle = axisColor;
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(center, 0); ctx.lineTo(center, size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, center); ctx.lineTo(size, center); ctx.stroke();
+
+            // стрелки
+            ctx.fillStyle = axisColor;
+            ctx.beginPath(); ctx.moveTo(size-20, center-10); ctx.lineTo(size-6, center); ctx.lineTo(size-20, center+10); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(center-10, 20); ctx.lineTo(center, 6); ctx.lineTo(center+10, 20); ctx.fill();
+
+            // подписи X, Y
+            ctx.font = 'bold 24px "Nunito"';
+            ctx.fillStyle = axisColor;
+            ctx.fillText('X', size-45, center-20);
+            ctx.fillText('Y', center+30, 45);
+
+            // чёрточки
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#666';
+            ctx.fillStyle = '#b34d75';
+            ctx.font = 'bold 15px "Nunito"';
+            for (let i = -5; i <= 5; i++) {
+                if (i === 0) continue;
+                let xPos = center + i*step;
+                ctx.beginPath(); ctx.moveTo(xPos, center-8); ctx.lineTo(xPos, center+8); ctx.stroke();
+                ctx.fillText(i, xPos-8, center+28);
+                let yPos = center - i*step;
+                ctx.beginPath(); ctx.moveTo(center-8, yPos); ctx.lineTo(center+8, yPos); ctx.stroke();
+                ctx.fillText(i, center-38, yPos+6);
+            }
+            ctx.font = 'bold 18px "Nunito"';
+            ctx.fillStyle = '#b34d75';
+            ctx.fillText('0', center-15, center-15);
+
+            // точки
+            const colors = ['#d44c78', '#e07c4c', '#3fa0a0', '#b3498a', '#cc7942', '#4f9f6f', '#d96a9d', '#b58ad1', '#f3a35c', '#7fa8cc'];
+            let idx = 0;
+            for (let [label, coords] of Object.entries(currentPoints)) {
+                let [x, y] = coords;
+                let cx = center + x * step;
+                let cy = center - y * step;
+                
+                ctx.beginPath();
+                ctx.fillStyle = colors[idx % colors.length];
+                ctx.shadowColor = '#b34d75';
+                ctx.shadowBlur = 6;
+                ctx.arc(cx, cy, 7, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                ctx.font = 'bold 14px "Nunito"';
+                ctx.fillStyle = '#3e1e2b';
+                ctx.fillText(label, cx - 10, cy - 15);
+                idx++;
+            }
+        }
+
+        // отрисовка для режима кликов
+        function drawClickMode() {
+            ctx.clearRect(0, 0, size, size);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+
+            // сетка
+            ctx.strokeStyle = '#f0d8e5';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 12; i++) {
+                const pos = i * step;
+                ctx.beginPath(); ctx.moveTo(pos, 0); ctx.lineTo(pos, size); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, pos); ctx.lineTo(size, pos); ctx.stroke();
+            }
+
+            // оси
+            ctx.strokeStyle = axisColor;
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(center, 0); ctx.lineTo(center, size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, center); ctx.lineTo(size, center); ctx.stroke();
+
+            // стрелки
+            ctx.fillStyle = axisColor;
+            ctx.beginPath(); ctx.moveTo(size-20, center-10); ctx.lineTo(size-6, center); ctx.lineTo(size-20, center+10); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(center-10, 20); ctx.lineTo(center, 6); ctx.lineTo(center+10, 20); ctx.fill();
+
+            // подписи X, Y
+            ctx.font = 'bold 24px "Nunito"';
+            ctx.fillStyle = axisColor;
+            ctx.fillText('X', size-45, center-20);
+            ctx.fillText('Y', center+30, 45);
+
+            // чёрточки
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#666';
+            ctx.fillStyle = '#b34d75';
+            ctx.font = 'bold 15px "Nunito"';
+            for (let i = -5; i <= 5; i++) {
+                if (i === 0) continue;
+                let xPos = center + i*step;
+                ctx.beginPath(); ctx.moveTo(xPos, center-8); ctx.lineTo(xPos, center+8); ctx.stroke();
+                ctx.fillText(i, xPos-8, center+28);
+                let yPos = center - i*step;
+                ctx.beginPath(); ctx.moveTo(center-8, yPos); ctx.lineTo(center+8, yPos); ctx.stroke();
+                ctx.fillText(i, center-38, yPos+6);
+            }
+            ctx.font = 'bold 18px "Nunito"';
+            ctx.fillStyle = '#b34d75';
+            ctx.fillText('0', center-15, center-15);
+
+            // если уже кликнули, показываем результат
+            if (hasClicked && lastClickResult) {
+                const { x, y, isCorrect, clickX, clickY } = lastClickResult;
+                
+                // рисуем цель (полупрозрачным кружком)
+                let targetCanvasX = center + targetPoint.x * step;
+                let targetCanvasY = center - targetPoint.y * step;
+                
+                ctx.beginPath();
+                ctx.fillStyle = isCorrect ? '#8fca7a88' : '#ffa0a088';
+                ctx.shadowColor = '#b34d75';
+                ctx.shadowBlur = 6;
+                ctx.arc(targetCanvasX, targetCanvasY, 12, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // рисуем клик
+                ctx.beginPath();
+                ctx.fillStyle = isCorrect ? '#4caf50' : '#ff5252';
+                ctx.arc(clickX, clickY, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                
+                // подпись
+                ctx.shadowBlur = 0;
+                ctx.font = 'bold 16px "Nunito"';
+                ctx.fillStyle = '#3e1e2b';
+                ctx.fillText(isCorrect ? '✓' : '✗', clickX - 8, clickY - 15);
+            }
+        }
+
+        // переключение режимов
+        const modeInputBtn = document.getElementById('modeInputBtn');
+        const modeClickBtn = document.getElementById('modeClickBtn');
+        const inputPanel = document.getElementById('inputModePanel');
+        const clickPanel = document.getElementById('clickModePanel');
+        const canvasContainer = document.getElementById('canvasContainer');
+
+        function setMode(mode) {
+            if (mode === 'input') {
+                modeInputBtn.classList.add('active');
+                modeClickBtn.classList.remove('active');
+                inputPanel.classList.remove('hidden');
+                clickPanel.classList.add('hidden');
+                canvasContainer.classList.remove('clickable');
+                drawInputMode();
+            } else {
+                modeInputBtn.classList.remove('active');
+                modeClickBtn.classList.add('active');
+                inputPanel.classList.add('hidden');
+                clickPanel.classList.remove('hidden');
+                canvasContainer.classList.add('clickable');
+                newTarget();
+            }
+        }
+
+        modeInputBtn.addEventListener('click', () => setMode('input'));
+        modeClickBtn.addEventListener('click', () => setMode('click'));
+
+        // обработка кликов на холст
+        canvasContainer.addEventListener('click', (e) => {
+            if (!clickPanel.classList.contains('hidden')) {
+                // режим кликов активен
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                const clickCanvasX = (e.clientX - rect.left) * scaleX;
+                const clickCanvasY = (e.clientY - rect.top) * scaleY;
+                
+                // преобразуем в координаты
+                const x = (clickCanvasX - center) / step;
+                const y = (center - clickCanvasY) / step;
+                
+                // округляем до ближайшего целого
+                const roundedX = Math.round(x);
+                const roundedY = Math.round(y);
+                
+                const isCorrect = (roundedX === targetPoint.x && roundedY === targetPoint.y);
+                
+                hasClicked = true;
+                lastClickResult = {
+                    x: roundedX,
+                    y: roundedY,
+                    isCorrect,
+                    clickX: clickCanvasX,
+                    clickY: clickCanvasY
+                };
+                
+                const feedback = document.getElementById('clickFeedback');
+                if (isCorrect) {
+                    feedback.innerHTML = '✅ правильно! молодец!';
+                    playNote(880, 'sine', 0.15);
+                } else {
+                    feedback.innerHTML = `❌ нет, это (${roundedX}; ${roundedY})`;
+                    playNote(330, 'sine', 0.1);
+                }
+                
+                drawClickMode();
+            }
+        });
+
+        // режим ввода: генерация точек
+        function newInputRound() {
+            currentPoints = generatePointsSet();
+            drawInputMode();
+            // очистка полей
+            document.querySelectorAll('#inputModePanel .coord-input').forEach(inp => {
+                inp.value = '';
+                inp.style.background = '#fffcf0';
+            });
+            playNote(660, 'sine', 0.15);
+        }
+
+        // проверка ввода
+        document.getElementById('checkBtn').addEventListener('click', () => {
+            const letters = ['A', 'B', 'C', 'D', 'L', 'M', 'K', 'N', 'F', 'E'];
+            letters.forEach(letter => {
+                const xInp = document.getElementById(letter + 'x');
+                const yInp = document.getElementById(letter + 'y');
+                if (!xInp || !yInp) return;
+                const x = parseInt(xInp.value.trim());
+                const y = parseInt(yInp.value.trim());
+                const [cx, cy] = currentPoints[letter] || [0, 0];
+                if (!isNaN(x) && !isNaN(y) && x === cx && y === cy) {
+                    xInp.style.background = '#ccf0c0';
+                    yInp.style.background = '#ccf0c0';
+                } else {
+                    xInp.style.background = '#ffa0a0';
+                    yInp.style.background = '#ffa0a0';
+                }
+            });
+            playNote(880, 'sine', 0.1);
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', newInputRound);
+        document.getElementById('newTargetBtn').addEventListener('click', newTarget);
+
+        // инициализация
+        newInputRound();
+        setMode('input');
+    </script>
+</body>
+</html>
