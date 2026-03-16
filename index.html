@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🌸 Два режима: координаты и клики</title>
+    <title>🌸 Два режима: координаты и клики (всегда 10 точек)</title>
     <style>
         * {
             margin: 0;
@@ -135,7 +135,7 @@
             height: 100%;
             border-radius: 36px;
             background: white;
-            pointer-events: none; /* холст не перехватывает клики, работаем через контейнер */
+            pointer-events: none;
         }
 
         .canvas-container.clickable {
@@ -319,21 +319,19 @@
     <div class="emoji-deco emoji8">🍰</div>
 
     <div class="worksheet">
-        <!-- переключатель режимов -->
         <div class="mode-selector">
             <button class="mode-btn active" id="modeInputBtn">✏️ ввести координаты</button>
             <button class="mode-btn" id="modeClickBtn">🎯 найти точку</button>
         </div>
 
         <div class="main-area">
-            <!-- левая часть (всегда видна) -->
             <div class="grid-section">
                 <div class="canvas-container" id="canvasContainer">
                     <canvas id="coordCanvas" width="700" height="700"></canvas>
                 </div>
             </div>
 
-            <!-- правая часть: режим ввода координат -->
+            <!-- режим ввода координат -->
             <div class="inputs-section" id="inputModePanel">
                 <div class="point-group">
                     <div class="group-title">🍓 A, B, C, D</div>
@@ -363,7 +361,7 @@
                 </div>
             </div>
 
-            <!-- правая часть: режим кликов -->
+            <!-- режим кликов -->
             <div class="inputs-section hidden" id="clickModePanel">
                 <div class="click-mode-area">
                     <div>🎯 найди точку</div>
@@ -394,12 +392,10 @@
             } catch (e) {}
         }
 
-        // звуки при кликах
         document.querySelectorAll('.coord-input').forEach(input => {
             input.addEventListener('keydown', () => playNote(660, 'sine', 0.06));
         });
 
-        // canvas
         const canvas = document.getElementById('coordCanvas');
         const ctx = canvas.getContext('2d');
         const size = 700;
@@ -407,48 +403,50 @@
         const step = size / 12;
         const axisColor = '#a0355c';
 
-        // данные
-        let currentPoints = {}; // для режима ввода
-        let targetPoint = { x: 2, y: 3 }; // для режима кликов
+        let currentPoints = {};
+        let targetPoint = { x: 2, y: 3 };
         let hasClicked = false;
         let lastClickResult = null;
 
-        // генерация случайных целых координат
+        // ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ЦЕЛЫХ КООРДИНАТ
         function randomCoord() {
             return Math.floor(Math.random() * 11) - 5;
         }
 
-        // генерация набора точек (10 штук)
-        function generatePointsSet() {
-            return {
-                A: [randomCoord(), randomCoord()],
-                B: [randomCoord(), randomCoord()],
-                C: [randomCoord(), randomCoord()],
-                D: [randomCoord(), randomCoord()],
-                L: [randomCoord(), randomCoord()],
-                M: [randomCoord(), randomCoord()],
-                K: [randomCoord(), randomCoord()],
-                N: [randomCoord(), randomCoord()],
-                F: [randomCoord(), randomCoord()],
-                E: [randomCoord(), randomCoord()]
-            };
+        // Проверка, есть ли уже такая координата в объекте
+        function isUniqueCoord(points, x, y) {
+            for (let key in points) {
+                if (points[key][0] === x && points[key][1] === y) {
+                    return false;
+                }
+            }
+            return true;
         }
 
-        // новая цель для режима кликов
-        function newTarget() {
-            targetPoint = {
-                x: randomCoord(),
-                y: randomCoord()
-            };
-            document.getElementById('targetCoord').textContent = `(${targetPoint.x}; ${targetPoint.y})`;
-            hasClicked = false;
-            lastClickResult = null;
-            document.getElementById('clickFeedback').innerHTML = '👆 кликни на плоскость';
-            drawClickMode();
-            playNote(660, 'sine', 0.1);
+        // Генерация 10 точек с уникальными координатами
+        function generateUniquePoints() {
+            const letters = ['A', 'B', 'C', 'D', 'L', 'M', 'K', 'N', 'F', 'E'];
+            const newPoints = {};
+            
+            for (let letter of letters) {
+                let x, y;
+                let attempts = 0;
+                do {
+                    x = randomCoord();
+                    y = randomCoord();
+                    attempts++;
+                    // защита от бесконечного цикла (на всякий случай)
+                    if (attempts > 1000) {
+                        console.warn('Слишком много попыток, генерируем без проверки');
+                        break;
+                    }
+                } while (!isUniqueCoord(newPoints, x, y));
+                newPoints[letter] = [x, y];
+            }
+            return newPoints;
         }
 
-        // отрисовка для режима ввода
+        // отрисовка режима ввода
         function drawInputMode() {
             ctx.clearRect(0, 0, size, size);
             ctx.fillStyle = '#ffffff';
@@ -498,7 +496,7 @@
             ctx.fillStyle = '#b34d75';
             ctx.fillText('0', center-15, center-15);
 
-            // точки
+            // точки (гарантированно 10 штук)
             const colors = ['#d44c78', '#e07c4c', '#3fa0a0', '#b3498a', '#cc7942', '#4f9f6f', '#d96a9d', '#b58ad1', '#f3a35c', '#7fa8cc'];
             let idx = 0;
             for (let [label, coords] of Object.entries(currentPoints)) {
@@ -521,9 +519,12 @@
                 ctx.fillText(label, cx - 10, cy - 15);
                 idx++;
             }
+            
+            // проверка для отладки (можно убрать)
+            console.log('Отображено точек:', idx);
         }
 
-        // отрисовка для режима кликов
+        // отрисовка режима кликов
         function drawClickMode() {
             ctx.clearRect(0, 0, size, size);
             ctx.fillStyle = '#ffffff';
@@ -573,11 +574,10 @@
             ctx.fillStyle = '#b34d75';
             ctx.fillText('0', center-15, center-15);
 
-            // если уже кликнули, показываем результат
+            // результат клика
             if (hasClicked && lastClickResult) {
-                const { x, y, isCorrect, clickX, clickY } = lastClickResult;
+                const { isCorrect, clickX, clickY } = lastClickResult;
                 
-                // рисуем цель (полупрозрачным кружком)
                 let targetCanvasX = center + targetPoint.x * step;
                 let targetCanvasY = center - targetPoint.y * step;
                 
@@ -591,7 +591,6 @@
                 ctx.lineWidth = 3;
                 ctx.stroke();
                 
-                // рисуем клик
                 ctx.beginPath();
                 ctx.fillStyle = isCorrect ? '#4caf50' : '#ff5252';
                 ctx.arc(clickX, clickY, 8, 0, 2 * Math.PI);
@@ -600,7 +599,6 @@
                 ctx.lineWidth = 2.5;
                 ctx.stroke();
                 
-                // подпись
                 ctx.shadowBlur = 0;
                 ctx.font = 'bold 16px "Nunito"';
                 ctx.fillStyle = '#3e1e2b';
@@ -636,10 +634,9 @@
         modeInputBtn.addEventListener('click', () => setMode('input'));
         modeClickBtn.addEventListener('click', () => setMode('click'));
 
-        // обработка кликов на холст
+        // клик на холст
         canvasContainer.addEventListener('click', (e) => {
             if (!clickPanel.classList.contains('hidden')) {
-                // режим кликов активен
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
@@ -647,11 +644,9 @@
                 const clickCanvasX = (e.clientX - rect.left) * scaleX;
                 const clickCanvasY = (e.clientY - rect.top) * scaleY;
                 
-                // преобразуем в координаты
                 const x = (clickCanvasX - center) / step;
                 const y = (center - clickCanvasY) / step;
                 
-                // округляем до ближайшего целого
                 const roundedX = Math.round(x);
                 const roundedY = Math.round(y);
                 
@@ -659,8 +654,6 @@
                 
                 hasClicked = true;
                 lastClickResult = {
-                    x: roundedX,
-                    y: roundedY,
                     isCorrect,
                     clickX: clickCanvasX,
                     clickY: clickCanvasY
@@ -679,16 +672,16 @@
             }
         });
 
-        // режим ввода: генерация точек
+        // новый раунд для режима ввода
         function newInputRound() {
-            currentPoints = generatePointsSet();
+            currentPoints = generateUniquePoints();
             drawInputMode();
-            // очистка полей
             document.querySelectorAll('#inputModePanel .coord-input').forEach(inp => {
                 inp.value = '';
                 inp.style.background = '#fffcf0';
             });
             playNote(660, 'sine', 0.15);
+            console.log('Сгенерировано точек:', Object.keys(currentPoints).length); // отладка
         }
 
         // проверка ввода
@@ -713,6 +706,21 @@
         });
 
         document.getElementById('resetBtn').addEventListener('click', newInputRound);
+
+        // новый таргет
+        function newTarget() {
+            targetPoint = {
+                x: randomCoord(),
+                y: randomCoord()
+            };
+            document.getElementById('targetCoord').textContent = `(${targetPoint.x}; ${targetPoint.y})`;
+            hasClicked = false;
+            lastClickResult = null;
+            document.getElementById('clickFeedback').innerHTML = '👆 кликни на плоскость';
+            drawClickMode();
+            playNote(660, 'sine', 0.1);
+        }
+
         document.getElementById('newTargetBtn').addEventListener('click', newTarget);
 
         // инициализация
